@@ -1,0 +1,38 @@
+---
+# Push a useful sudo file to /etc/sudoers.d/Admins wth 440 perms, root:root
+# ownership, so that the Admins group can sudo (with password)
+#
+
+- hosts: all
+  user: ubuntu
+  sudo: true
+  tasks:
+   - name: Installs ldap-auth-client
+     apt: pkg=ldap-auth-client state=installed update_cache=true
+
+   - name: Installs nscd
+     apt: pkg=nscd state=installed update_cache=true
+
+   - name: push ldap.conf
+     action: copy src=./ldap.conf owner=root group=root mode=0644 dest=/etc/ldap.conf
+     notify: Restart nscd
+
+   - name: ChallengeResponse yes for ssh
+     lineinfile: dest=/etc/ssh/sshd_config regexp=^ChallengeResponseAuthentication line='ChallengeResponseAuthentication yes'
+     notify: Restart sshd
+
+   - name: switch nsswitch to files/ldap for passwd.
+     lineinfile: "dest=/etc/nsswitch.conf regexp='^passwd:'  line='passwd:	files ldap'"
+   - name: switch nsswitch to files/ldap for group.
+     lineinfile: "dest=/etc/nsswitch.conf regexp='^group:'  line='group:	files ldap'"
+   - name: switch nsswitch to files/ldap for shadow.
+     lineinfile: "dest=/etc/nsswitch.conf regexp='^shadow:'  line='shadow:	files ldap'"
+
+   - name: push sudoers file
+     action: copy src=./admins-sudoers owner=root group=root mode=0440 dest=/etc/sudoers.d/Admins validate='visudo -cf %s' force=no
+
+  handlers:
+   - name: Restart nscd
+     service: name=nscd state=restarted
+   - name: Restart sshd
+     service: name=ssh state=restarted
