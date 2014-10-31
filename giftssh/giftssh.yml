@@ -1,0 +1,18 @@
+---
+# Copy out ssh key stuff via ansible. Which is sort of bass-akwards, but
+# needful to get ansible corking smoothly on existing hosts w/poor auth
+# infrastructure
+#
+
+- hosts: all
+  gather_facts: no
+  vars:
+    testmod: happy
+  remote_user: <username>
+
+  tasks:
+  - name: add-key
+    authorized_key: user=<username>
+                    key="{{ lookup('file', 'ssh public key') }}"
+                    manage_dir=yes
+
